@@ -58,6 +58,24 @@ arxiv_analytics/
 JSON API: `GET /api/categories`, `POST /api/search`, `POST /api/analyze` (refine a cached result),
 `POST /api/compare`, `GET /api/export?result_id=…&format=csv|json&filters=…`.
 
+## Hosted version (GitHub Pages)
+
+`scripts/build_site.py` builds a static copy of the UI into `build/site`. A static host can't run the
+Python server, so the site includes `site/static-api.js`, which handles the UI's `/api/*` calls in the
+browser:
+
+- Searches call the arXiv API directly from the browser and are paged with the same 3-second spacing.
+- If the browser can't reach arXiv, the site switches to the built-in synthetic sample papers and says
+  so in the header and status line.
+- Analytics, filters, Compare and CSV/JSON export all run in the browser.
+
+`.github/workflows/pages.yml` runs the tests, builds the site and publishes it to the `gh-pages` branch
+on every push to `main`. To turn it on, open **Settings → Pages**, choose **Deploy from a branch**,
+and select `gh-pages` / `(root)`. The site is then served at
+`https://<owner>.github.io/<repo>/`.
+
+To preview locally: `python3 scripts/build_site.py && python3 -m http.server -d build/site`.
+
 ## Tests
 
 ```bash
