@@ -150,6 +150,19 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 404)
 
 
+class BuildSiteTest(unittest.TestCase):
+    def test_build_writes_static_site(self):
+        import tempfile
+        from scripts.build_site import build
+        with tempfile.TemporaryDirectory() as tmp:
+            out = build(Path(tmp) / "site")
+            html = (out / "index.html").read_text()
+            for name in ("data.js", "static-api.js", "app.js", "static-site.js", "style.css", ".nojekyll"):
+                self.assertTrue((out / name).exists(), name)
+            self.assertLess(html.index("static-api.js"), html.index('src="app.js"'))
+            self.assertLess(html.index('src="app.js"'), html.index("static-site.js"))
+
+
 class CsvTest(unittest.TestCase):
     def test_csv_joins_lists(self):
         out = to_csv(fixture_papers())
