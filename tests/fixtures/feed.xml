@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query fixture</title>
+  <opensearch:totalResults>3</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <opensearch:itemsPerPage>3</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/2401.00001v1</id>
+    <updated>2024-01-02T00:00:00Z</updated>
+    <published>2024-01-01T00:00:00Z</published>
+    <title>Fixture Paper on Map
+      Matching</title>
+    <summary>  We study map matching with graph neural networks for road networks.  </summary>
+    <author><name>Alice Fixture</name></author>
+    <author><name>Bob Fixture</name></author>
+    <arxiv:doi>10.0000/fixture.1</arxiv:doi>
+    <link href="http://arxiv.org/abs/2401.00001v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2401.00001v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2402.00002v2</id>
+    <updated>2024-02-03T00:00:00Z</updated>
+    <published>2024-02-01T00:00:00Z</published>
+    <title>Second Fixture on Road Network Extraction</title>
+    <summary>Road network extraction from satellite imagery.</summary>
+    <author><name>Alice Fixture</name></author>
+    <arxiv:primary_category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2404.00003v1</id>
+    <updated>2024-04-01T00:00:00Z</updated>
+    <published>2024-04-01T00:00:00Z</published>
+    <title>Third Fixture on Geospatial Data Quality</title>
+    <summary>Map data quality validation and repair.</summary>
+    <author><name>Carol Fixture</name></author>
+    <arxiv:primary_category term="cs.DB" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.DB" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>

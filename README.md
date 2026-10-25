@@ -1,0 +1,72 @@
+# arXiv Research Analytics
+
+A local web tool for searching, filtering and analysing [arXiv](https://arxiv.org) research by
+topic and category. It needs only the Python standard library: no packages to install and no build step.
+
+## Quick start
+
+```bash
+python3 -m arxiv_analytics --open          # live arXiv API at http://127.0.0.1:8765
+python3 -m arxiv_analytics --demo --open   # offline, synthetic sample data
+```
+
+Options: `--host`, `--port` (default 8765), `--demo`, `--open`.
+You can also run `pip install .` and then `arxiv-analytics`.
+
+## Features
+
+**Search panel (sent to the arXiv API)**
+- Topic / keywords. Separate alternatives with commas to OR them; multi-word phrases match exactly.
+- Search field: all fields, title, abstract, author, comments or journal ref.
+- Category picker: about 50 arXiv categories grouped by archive (CS, Stats, EESS, Math, Physics,
+  q-bio, q-fin, econ). You can search the list and select a whole group at once.
+- Author filter, submitted-date range, max papers (up to 2,000, fetched in pages) and sort order.
+- One-click topic presets.
+
+**Refine bar (filters the fetched results without calling arXiv again)**
+- Free-text, author and year-range filters.
+- Category chips, with a "primary category only" toggle.
+- Click any category bar, author, key phrase, keyword or emerging term to drill into it.
+
+**Overview analytics**
+- KPIs: papers, unique authors, average team size, share of cross-listed papers, date span.
+- Publications over time, by month (or by year for spans over 4 years).
+- Primary category and all-category (including cross-lists) distributions.
+- Top authors, key phrases (bigrams) and a keyword cloud.
+- **Emerging terms**: terms whose share of papers grew most between the earlier and the more
+  recent half of the result set.
+- Category co-occurrence: which fields are cross-listed together.
+
+**Papers tab**: sortable list with abstracts, links to the abstract and PDF, and **CSV / JSON export**
+of the filtered set.
+
+**Compare topics**: run 2–6 topics with the same category and date filters and see papers per year as
+overlaid trend lines, plus a summary table (total matches on arXiv, top categories, top keywords).
+
+## Architecture
+
+```
+arxiv_analytics/
+  client.py      arXiv Atom API: query builder, paging (3 s between requests), feed parser
+  analytics.py   stats, trends, rankings, emerging terms, result filtering
+  categories.py  arXiv taxonomy subset
+  server.py      stdlib HTTP server + JSON API, caches recent result sets
+  demo.py        synthetic corpus for --demo (clearly labelled in the UI)
+  static/        index.html, app.js, style.css (no external libraries; charts are hand-drawn SVG)
+```
+
+JSON API: `GET /api/categories`, `POST /api/search`, `POST /api/analyze` (refine a cached result),
+`POST /api/compare`, `GET /api/export?result_id=…&format=csv|json&filters=…`.
+
+## Tests
+
+```bash
+python3 -m unittest discover -s tests -t .
+```
+
+## Notes
+
+- arXiv's API terms ask clients to wait about 3 seconds between requests. Large fetches (e.g.
+  2,000 papers = 10 pages) and topic comparisons therefore take a while.
+- `totalResults` is arXiv's count of all matches. The analytics cover only the papers fetched, up to
+  "Max papers".
