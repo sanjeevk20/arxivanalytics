@@ -20,9 +20,12 @@
 
 <div class="layout">
   <!-- Search panel -->
-  <aside class="panel search-panel">
+  <aside class="panel search-panel" id="search-panel" aria-label="Search">
     <form id="search-form" autocomplete="off">
-      <h2>Search</h2>
+      <div class="panel-head">
+        <h2>Search</h2>
+        <button type="button" id="close-search" class="icon-btn mobile-only" aria-label="Close search">✕</button>
+      </div>
 
       <label for="topic">Topic / keywords</label>
       <input id="topic" name="topic" placeholder="e.g. map matching, road network extraction">
@@ -77,19 +80,24 @@
       </div>
     </form>
   </aside>
+  <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
 
   <main>
     <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="overview" class="active">Overview</button>
-      <button role="tab" data-tab="papers">Papers</button>
-      <button role="tab" data-tab="compare">Compare topics</button>
+      <button role="tab" data-tab="overview" class="active"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Overview</span></button>
+      <button role="tab" data-tab="papers"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg><span>Papers</span></button>
+      <button role="tab" data-tab="compare"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-7 4 4"/><path d="M3 21h18"/></svg><span>Compare<span class="desktop-only"> topics</span></span></button>
+      <button type="button" id="tab-search-btn" class="mobile-only" aria-controls="search-panel" aria-expanded="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Search</span></button>
     </nav>
 
     <div id="status" class="status" hidden></div>
 
     <!-- Refine bar (applies to Overview + Papers) -->
     <section id="refine" class="panel refine" hidden>
-      <div class="refine-row">
+      <button type="button" id="refine-toggle" class="refine-toggle mobile-only" aria-expanded="false" aria-controls="refine-row">
+        <span>Filters <span id="refine-count" class="count"></span></span><span class="chev" aria-hidden="true">▾</span>
+      </button>
+      <div class="refine-row" id="refine-row">
         <input id="f-text" placeholder="Filter within results (title/abstract)…">
         <input id="f-author" placeholder="Author contains…">
         <input id="f-year-from" type="number" placeholder="Year from" min="1991" max="2100">
@@ -103,8 +111,9 @@
     <section id="tab-overview" class="tab-panel">
       <div id="empty" class="empty">
         <h2>Start with a research topic</h2>
-        <p>Enter keywords and/or pick categories on the left, then press <b>Analyse</b>.
+        <p>Enter keywords and/or pick categories in the search panel, then press <b>Analyse</b>.
           You'll get publication trends, category mix, leading authors, key phrases and emerging terms.</p>
+        <button type="button" class="primary mobile-only" id="empty-search">Start a search</button>
       </div>
       <div id="overview" hidden>
         <div class="kpis" id="kpis"></div>

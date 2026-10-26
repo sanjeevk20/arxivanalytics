@@ -97,6 +97,7 @@ async function runSearch(e) {
   e?.preventDefault();
   const btn = $("#search-btn");
   btn.disabled = true;
+  btn.textContent = "Analysing…";
   setStatus('<span class="spinner"></span>Querying arXiv and computing analytics…');
   try {
     const data = await api("/api/search", searchBody());
@@ -105,6 +106,7 @@ async function runSearch(e) {
     resetFilters(false);
     applyResult(data);
     $("#query-preview").textContent = `Query: ${data.query}`;
+    if (narrow()) { setSheet(false); window.scrollTo({ top: 0 }); }
     const capped = data.total_available > data.fetched
       ? ` (of ${fmt(data.total_available)} matching — raise “Max papers” to analyse more)` : "";
     setStatus(data.fetched
@@ -114,7 +116,16 @@ async function runSearch(e) {
     setStatus(esc(err.message), "error");
   } finally {
     btn.disabled = false;
+    btn.textContent = "Analyse";
   }
+}
+
+// ---------- Mobile search sheet ----------
+function setSheet(open) {
+  document.body.classList.toggle("sheet-open", open);
+  $("#sheet-backdrop").hidden = !open;
+  $("#tab-search-btn").setAttribute("aria-expanded", String(open));
+  if (!open && document.activeElement?.closest("#search-panel")) document.activeElement.blur();
 }
 
 // ---------- Refine ----------
@@ -177,6 +188,12 @@ function renderChips() {
       title="${esc(c.label)}">${esc(c.name)}<span class="n">${fmt(c.count)}</span></button>`).join("");
 }
 
+function renderRefineCount() {
+  const f = state.filters;
+  const n = f.categories.length + [f.text, f.author, f.year_from, f.year_to, f.primary_only].filter(Boolean).length;
+  $("#refine-count").textContent = n ? `(${n} active)` : "";
+}
+
 // ---------- Rendering ----------
 function applyResult(data) {
   state.papers = data.papers;
@@ -187,6 +204,7 @@ function applyResult(data) {
   $("#overview").hidden = !has;
   $("#refine").hidden = !has;
   renderChips();
+  renderRefineCount();
   renderOverview(data.analytics);
   renderPapers();
 }
@@ -204,8 +222,8 @@ function renderOverview(a) {
   $("#kpis").innerHTML = kpis.map(([v, l]) => `<div class="kpi"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join("");
 
   // Long spans read better per year; short spans per month.
-  const series = a.timeline.length > 48 ? a.by_year : a.timeline;
-  $("#chart-timeline").innerHTML = columnChart(series);
+  const series = a.timeline.length > (narrow() ? 24 : 48) ? a.by_year : a.timeline;
+  $("#chart-timeline").innerHTML = columnChart(series, chartWidth("#chart-timeline"));
 
   $("#chart-primary").innerHTML = hbars(a.primary_categories.slice(0, 12), "name", "cat", (r) => r.label);
   $("#chart-allcats").innerHTML = hbars(a.all_categories.slice(0, 12), "name", "cat", (r) => r.label);
@@ -257,14 +275,18 @@ const ticksFor = (max) => {
   return Array.from({ length: n + 1 }, (_, i) => (max * i) / n);
 };
 
-function columnChart(series) {
+// Charts are drawn at the container's real width so text keeps its size on small screens.
+const chartWidth = (sel) => Math.max(280, $(sel).clientWidth || 860);
+const narrow = () => window.matchMedia("(max-width: 900px)").matches;
+
+function columnChart(series, W = 860) {
   if (!series.length) return '<p class="hint">No dated papers.</p>';
-  const W = 860, H = 240, L = 40, R = 10, T = 10, B = 34;
+  const H = W < 600 ? 200 : 240, L = 36, R = 8, T = 10, B = 34;
   const max = niceMax(Math.max(...series.map((d) => d.count)));
   const bw = (W - L - R) / series.length;
   const y = (v) => T + (H - T - B) * (1 - v / max);
   const ticks = ticksFor(max);
-  const every = Math.ceil(series.length / 12);
+  const every = Math.ceil(series.length / Math.max(2, Math.floor((W - L - R) / 58)));
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Publications over time">
     ${ticks.map((t) => `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/>
       <text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`).join("")}
@@ -275,10 +297,11 @@ function columnChart(series) {
   </svg>`;
 }
 
-function lineChart(seriesList) {
+function lineChart(seriesList, W = 860) {
   const periods = [...new Set(seriesList.flatMap((s) => s.by_year.map((d) => d.period)))].sort();
   if (!periods.length) return '<p class="hint">No dated papers.</p>';
-  const W = 860, H = 260, L = 40, R = 16, T = 12, B = 30;
+  const H = W < 600 ? 220 : 260, L = 36, R = 16, T = 12, B = 30;
+  const every = Math.ceil(periods.length / Math.max(2, Math.floor((W - L - R) / 44)));
   const max = niceMax(Math.max(1, ...seriesList.flatMap((s) => s.by_year.map((d) => d.count))));
   const x = (i) => L + (periods.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (periods.length - 1));
   const y = (v) => T + (H - T - B) * (1 - v / max);
@@ -286,7 +309,7 @@ function lineChart(seriesList) {
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Papers per year by topic">
     ${ticks.map((t) => `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/>
       <text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`).join("")}
-    ${periods.map((p, i) => `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${esc(p)}</text>`).join("")}
+    ${periods.map((p, i) => (i % every ? "" : `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${esc(p)}</text>`)).join("")}
     ${seriesList.map((s, si) => {
       const m = Object.fromEntries(s.by_year.map((d) => [d.period, d.count]));
       const pts = periods.map((p, i) => [x(i), y(m[p] || 0), p, m[p] || 0]);
@@ -341,8 +364,9 @@ async function runCompare() {
     const body = { ...searchBody(), topics };
     delete body.topic;
     const data = await api("/api/compare", body);
+    state.compare = data;
     $("#compare-out").hidden = false;
-    $("#chart-compare").innerHTML = lineChart(data.series);
+    $("#chart-compare").innerHTML = lineChart(data.series, chartWidth("#chart-compare"));
     $("#compare-legend").innerHTML = data.series.map((s, i) => `<span style="--c:var(--series-${(i % 6) + 1})">${esc(s.topic)}</span>`).join("");
     $("#compare-table").innerHTML = `<table><thead><tr><th>Topic</th><th class="num">Matching on arXiv</th>
       <th class="num">Analysed</th><th>Top categories</th><th>Top keywords</th></tr></thead><tbody>
@@ -360,10 +384,17 @@ async function runCompare() {
 
 // ---------- Wiring ----------
 function initTabs() {
-  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
-    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("active", x === b));
+  const tabs = document.querySelectorAll(".tabs button[data-tab]");
+  tabs.forEach((b) => b.addEventListener("click", () => {
+    tabs.forEach((x) => x.classList.toggle("active", x === b));
     document.querySelectorAll(".tab-panel").forEach((p) => (p.hidden = p.id !== `tab-${b.dataset.tab}`));
     $("#refine").hidden = b.dataset.tab === "compare" || !state.base?.fetched;
+    // Panels hidden while charts were drawn have no width, so redraw on show.
+    if (b.dataset.tab === "overview" && state.analytics) renderOverview(state.analytics);
+    if (b.dataset.tab === "compare" && state.compare) {
+      $("#chart-compare").innerHTML = lineChart(state.compare.series, chartWidth("#chart-compare"));
+    }
+    if (narrow()) window.scrollTo({ top: 0 });
   }));
 }
 
@@ -400,6 +431,31 @@ function init() {
   $("#export-csv").addEventListener("click", () => exportResults("csv"));
   $("#export-json").addEventListener("click", () => exportResults("json"));
   $("#compare-btn").addEventListener("click", runCompare);
+
+  $("#tab-search-btn").addEventListener("click", () => setSheet(!document.body.classList.contains("sheet-open")));
+  $("#empty-search").addEventListener("click", () => setSheet(true));
+  $("#close-search").addEventListener("click", () => setSheet(false));
+  $("#sheet-backdrop").addEventListener("click", () => setSheet(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setSheet(false); });
+  $("#refine-toggle").addEventListener("click", () => {
+    const open = $("#refine").classList.toggle("open");
+    $("#refine-toggle").setAttribute("aria-expanded", String(open));
+  });
+
+  // Redraw charts when the width changes (rotation, resizing); mobile scrolling only changes height.
+  let lastWidth = window.innerWidth, resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
+      if (!narrow()) setSheet(false);
+      if (state.analytics) renderOverview(state.analytics);
+      if (state.compare && !$("#tab-compare").hidden) {
+        $("#chart-compare").innerHTML = lineChart(state.compare.series, chartWidth("#chart-compare"));
+      }
+    }, 150);
+  });
 
   initTabs();
   initCategories().catch((err) => setStatus(esc(err.message), "error"));
