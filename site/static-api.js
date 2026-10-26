@@ -150,6 +150,10 @@
   const PAGE_SIZE = 200, MAX_RESULTS = 2000, REQUEST_DELAY_MS = 3000;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let lastRequest = 0;
+  // Browsers can't call arXiv directly (it sends no CORS headers), so searches go through the
+  // relay in relay/worker.js when site/config.js names one. Direct is kept as a fallback.
+  const RELAY_URL = (window.__ARXIV_RELAY_URL__ || "").replace(/\/+$/, "");
+  let endpoints = [RELAY_URL, ARXIV_URL].filter(Boolean);
 
   const textOf = (node, ns, tag) => {
     const el = node.getElementsByTagNameNS(ns, tag)[0];
@@ -196,15 +200,23 @@
       sortBy: ["relevance", "submittedDate", "lastUpdatedDate"].includes(b.sort_by) ? b.sort_by : "submittedDate",
       sortOrder: b.sort_order === "ascending" ? "ascending" : "descending",
     });
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    try {
-      const res = await realFetch(`${ARXIV_URL}?${qs}`, { signal: ctrl.signal });
-      if (!res.ok) throw new Error(`arXiv responded with HTTP ${res.status}`);
-      return parseFeed(await res.text());
-    } finally {
-      clearTimeout(timer);
+    let lastError;
+    for (const base of endpoints) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      try {
+        const res = await realFetch(`${base}?${qs}`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error(`arXiv responded with HTTP ${res.status}`);
+        const page = parseFeed(await res.text());
+        endpoints = [base]; // stick with whichever endpoint answered
+        return page;
+      } catch (err) {
+        lastError = err;
+      } finally {
+        clearTimeout(timer);
+      }
     }
+    throw lastError;
   }
 
   async function liveSearch(b) {

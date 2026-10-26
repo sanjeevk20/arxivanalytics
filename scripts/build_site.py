@@ -29,14 +29,14 @@ def build(out):
     out.mkdir(parents=True)
 
     html = (STATIC / "index.html").read_text()
-    scripts = ["data.js", "static-api.js", "app.js", "static-site.js"]
+    scripts = ["config.js", "data.js", "static-api.js", "app.js", "static-site.js"]
     html = html.replace('<script src="app.js"></script>',
                         "\n".join(f'<script src="{s}"></script>' for s in scripts))
     (out / "index.html").write_text(html)
 
     for name in ("app.js", "style.css"):
         shutil.copy(STATIC / name, out / name)
-    for name in ("static-api.js", "static-site.js"):
+    for name in ("config.js", "static-api.js", "static-site.js"):
         shutil.copy(SITE / name, out / name)
     (out / "data.js").write_text(
         "window.__CORPUS__=" + json.dumps(demo.generate(), separators=(",", ":")) + ";\n"

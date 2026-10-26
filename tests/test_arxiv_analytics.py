@@ -157,7 +157,7 @@ class BuildSiteTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = build(Path(tmp) / "site")
             html = (out / "index.html").read_text()
-            for name in ("data.js", "static-api.js", "app.js", "static-site.js", "style.css", ".nojekyll"):
+            for name in ("config.js", "data.js", "static-api.js", "app.js", "static-site.js", "style.css", ".nojekyll"):
                 self.assertTrue((out / name).exists(), name)
             self.assertLess(html.index("static-api.js"), html.index('src="app.js"'))
             self.assertLess(html.index('src="app.js"'), html.index("static-site.js"))
