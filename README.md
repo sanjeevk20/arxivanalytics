@@ -76,6 +76,22 @@ and select `gh-pages` / `(root)`. The site is then served at
 
 To preview locally: `python3 scripts/build_site.py && python3 -m http.server -d build/site`.
 
+### arXiv relay (needed for live data on the hosted site)
+
+arXiv's API sends no CORS headers, so browsers block it when it's called from another website, and the
+hosted site falls back to sample data. `relay/worker.js` is a small Cloudflare Worker that forwards
+arXiv API queries and adds those headers. It only calls `export.arxiv.org/api/query`, caps a request at
+500 results, and caches answers for an hour.
+
+1. Sign in at https://dash.cloudflare.com (the free plan is enough).
+2. Go to **Workers & Pages → Create → Create Worker**, name it `arxiv-relay`, and click **Deploy**.
+3. Click **Edit code**, replace everything with the contents of `relay/worker.js`, and click **Deploy**.
+4. Copy the Worker's URL (`https://arxiv-relay.<your-subdomain>.workers.dev`) into `site/config.js`
+   and push to `main`.
+
+Browsers are only allowed through for `https://sanjeevk20.github.io` and localhost:8000. To change
+that, set an `ALLOWED_ORIGINS` variable (comma-separated) in the Worker's settings.
+
 ## Tests
 
 ```bash
