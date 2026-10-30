@@ -6,7 +6,7 @@ These records are generated, not real arXiv papers; the UI labels them as such.
 import random
 
 from .analytics import filter_papers
-from .client import build_query
+from .client import audit_entry, build_query
 
 _THEMES = {
     "cs.LG": ["graph neural networks", "self-supervised learning", "federated learning",
@@ -78,7 +78,7 @@ def generate(n=600, seed=7):
 _CORPUS = None
 
 
-def search(params):
+def search(params, audit=None):
     """Mimic client.search() against the synthetic corpus."""
     global _CORPUS
     if _CORPUS is None:
@@ -97,4 +97,9 @@ def search(params):
         matched = filter_papers(matched, author=author)
     if params.sort_order == "ascending":
         matched = list(reversed(matched))
-    return matched[: params.max_results], len(matched), query
+    papers = matched[: params.max_results]
+    if audit is not None:
+        audit.append(audit_entry("demo", query, status="demo", returned=len(papers),
+                                 total=len(matched), duration_ms=0,
+                                 note="Synthetic demo corpus; no request sent to arXiv."))
+    return papers, len(matched), query

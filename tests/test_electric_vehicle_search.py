@@ -109,8 +109,8 @@ class ElectricVehicleApiTest(unittest.TestCase):
     def setUpClass(cls):
         cls.fake = FakeArxiv()
 
-        def search_fn(params):
-            papers, total, query = client.search(params, fetch=cls.fake, delay=0)
+        def search_fn(params, audit):
+            papers, total, query = client.search(params, fetch=cls.fake, delay=0, audit=audit)
             return [p.to_dict() for p in papers], total, query
 
         cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(App(search_fn=search_fn)))

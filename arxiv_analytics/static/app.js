@@ -19,6 +19,7 @@ const state = {
   analytics: null,
   filters: { text: "", author: "", categories: [], primary_only: false, year_from: "", year_to: "" },
   shown: PAGE,
+  audit: [],       // newest first; see addAudit
 };
 
 // ---------- API ----------
@@ -27,8 +28,78 @@ async function api(path, body) {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   } : undefined);
   const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  // Searches and comparisons report the arXiv requests they made, even when they fail.
+  if (Array.isArray(data.audit)) addAudit(data.audit, path);
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
+}
+
+// ---------- Audit log ----------
+const AUDIT_MAX = 200;
+const AUDIT_SOURCES = {
+  arxiv: "Server → arXiv",
+  relay: "Relay → arXiv",
+  direct: "Browser → arXiv",
+  demo: "Demo data, no request",
+  sample: "Sample data fallback",
+};
+const AUDIT_STATUS = { ok: "OK", error: "Error", demo: "Demo", fallback: "Fallback" };
+const isProblem = (e) => e.status === "error" || e.status === "fallback";
+
+function addAudit(entries, path) {
+  for (const e of entries) {
+    e.action ||= path === "/api/compare" ? "compare" : "search";
+    console.debug(`[arxiv] ${e.status} ${AUDIT_SOURCES[e.source] || e.source}: ${e.query}`, e.url || "", e);
+  }
+  state.audit = [...entries].reverse().concat(state.audit).slice(0, AUDIT_MAX);
+  renderAudit();
+}
+
+function renderAudit() {
+  const all = state.audit;
+  const problems = all.filter(isProblem).length;
+  const badge = $("#log-badge");
+  badge.hidden = !all.length;
+  badge.textContent = all.length;
+  badge.classList.toggle("bad", problems > 0);
+  $("#log-count").textContent = all.length
+    ? `${fmt(all.length)} request${all.length === 1 ? "" : "s"}${problems ? `, ${problems} with problems` : ""}`
+    : "No arXiv requests yet";
+  const shown = $("#log-errors-only").checked ? all.filter(isProblem) : all;
+  $("#log-list").innerHTML = shown.map((e) => {
+    const meta = [
+      e.start != null && `start ${e.start}`,
+      e.max_results != null && `max ${e.max_results}`,
+      e.returned != null && `returned ${fmt(e.returned)}${e.total != null ? ` of ${fmt(e.total)}` : ""}`,
+      e.http_status && `HTTP ${e.http_status}`,
+    ].filter(Boolean).join(" · ");
+    return `<li class="log-entry ${esc(e.status)}">
+      <div class="log-head">
+        <span class="pill ${esc(e.status)}">${esc(AUDIT_STATUS[e.status] || e.status)}</span>
+        <span class="log-src">${esc(AUDIT_SOURCES[e.source] || e.source)}</span>
+        <span class="log-action">${esc(e.action)}</span>
+        <span class="spacer"></span>
+        <time datetime="${esc(e.time)}">${esc(new Date(e.time).toLocaleTimeString())}</time>
+        <span class="log-ms">${e.duration_ms != null ? `${fmt(e.duration_ms)} ms` : ""}</span>
+      </div>
+      <code class="log-query">${esc(e.query)}</code>
+      ${meta ? `<div class="log-meta">${esc(meta)}</div>` : ""}
+      ${e.error ? `<div class="log-error">${esc(e.error)}</div>` : ""}
+      ${e.note ? `<div class="log-note">${esc(e.note)}</div>` : ""}
+      ${e.url ? `<a class="log-url" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a>` : ""}
+    </li>`;
+  }).join("") || `<li class="hint">${all.length ? "No problems logged." : "Run a search to see the arXiv queries here."}</li>`;
+}
+
+async function copyAudit() {
+  const btn = $("#log-copy");
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(state.audit, null, 2));
+    btn.textContent = "Copied";
+  } catch {
+    btn.textContent = "Copy blocked";
+  }
+  setTimeout(() => (btn.textContent = "Copy log"), 1500);
 }
 
 function setStatus(msg, kind = "") {
@@ -388,7 +459,7 @@ function initTabs() {
   tabs.forEach((b) => b.addEventListener("click", () => {
     tabs.forEach((x) => x.classList.toggle("active", x === b));
     document.querySelectorAll(".tab-panel").forEach((p) => (p.hidden = p.id !== `tab-${b.dataset.tab}`));
-    $("#refine").hidden = b.dataset.tab === "compare" || !state.base?.fetched;
+    $("#refine").hidden = ["compare", "log"].includes(b.dataset.tab) || !state.base?.fetched;
     // Panels hidden while charts were drawn have no width, so redraw on show.
     if (b.dataset.tab === "overview" && state.analytics) renderOverview(state.analytics);
     if (b.dataset.tab === "compare" && state.compare) {
@@ -431,6 +502,9 @@ function init() {
   $("#export-csv").addEventListener("click", () => exportResults("csv"));
   $("#export-json").addEventListener("click", () => exportResults("json"));
   $("#compare-btn").addEventListener("click", runCompare);
+  $("#log-errors-only").addEventListener("change", renderAudit);
+  $("#log-copy").addEventListener("click", copyAudit);
+  $("#log-clear").addEventListener("click", () => { state.audit = []; renderAudit(); });
 
   $("#tab-search-btn").addEventListener("click", () => setSheet(!document.body.classList.contains("sheet-open")));
   $("#empty-search").addEventListener("click", () => setSheet(true));

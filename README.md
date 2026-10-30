@@ -10,7 +10,12 @@ python3 -m arxiv_analytics --open          # live arXiv API at http://127.0.0.1:
 python3 -m arxiv_analytics --demo --open   # offline, synthetic sample data
 ```
 
-Options: `--host`, `--port` (default 8765), `--demo`, `--open`.
+Options: `--host`, `--port` (default 8765), `--demo`, `--open`, and `--debug` to print every arXiv
+request and response in the terminal.
+
+The **Audit log** tab lists every request a search or comparison sent to arXiv: the query, the full
+request URL, the route (server, relay, direct or sample data), HTTP status, timing and result counts,
+failures included. Each entry is also written to the browser console with `console.debug`.
 You can also run `pip install .` and then `arxiv-analytics`.
 
 ## Features
@@ -44,6 +49,8 @@ of the filtered set.
 overlaid trend lines, plus a summary table (total matches on arXiv, top categories, top keywords).
 
 ## Architecture
+
+Diagrams of the runtime and deploy pipeline: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ```
 arxiv_analytics/
