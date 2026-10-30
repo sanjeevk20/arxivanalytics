@@ -261,23 +261,22 @@
     return { papers: papers.slice(0, limit), total, query, source: "arxiv" };
   }
 
-  // Live first; after one failure, stay on sample data so each search isn't slowed by a timeout.
-  let liveAvailable = true;
+  // Live arXiv only. Sample papers are used only after the person chooses them
+  // (window.__useSampleData__, set by static-site.js); a failed live search is an error.
   async function search(b, audit) {
-    let reason = "arXiv was unreachable earlier in this session";
-    if (liveAvailable) {
+    buildQuery(b); // input errors (no topic, bad years) surface as themselves
+    if (!window.__useSampleData__) {
       try {
         return await liveSearch(b, audit);
       } catch (err) {
-        if (err.message.startsWith("Provide at least")) throw err;
-        liveAvailable = false;
-        reason = err.message || String(err);
-        window.dispatchEvent(new CustomEvent("arxiv-fallback", { detail: reason }));
+        const reason = err.message || String(err);
+        window.dispatchEvent(new CustomEvent("arxiv-unreachable", { detail: reason }));
+        throw Object.assign(new Error(`Couldn't reach arXiv (${reason}).`), { status: 502 });
       }
     }
     const r = demoSearch(b);
     audit.push(auditEntry("sample", r.query, { status: "fallback", returned: r.papers.length, total: r.total,
-      duration_ms: 0, note: `Using built-in sample papers: ${reason}.` }));
+      duration_ms: 0, note: "Built-in sample papers, chosen instead of live arXiv. Not real papers." }));
     return { ...r, source: "demo" };
   }
 
@@ -296,11 +295,21 @@
     return { papers: matched.slice(0, Number(b.max_results) || 200), total: matched.length, query };
   }
 
+  // Keep the requests that were sent on the error, so the audit log can show a failed search.
+  async function withAudit(audit, fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      err.audit = audit;
+      throw err;
+    }
+  }
+
   const routes = {
     "/api/categories": () => ({ groups: GROUPS, demo: false }),
     "/api/search": async (b) => {
       const audit = [];
-      const { papers, total, query, source } = await search(b, audit);
+      const { papers, total, query, source } = await withAudit(audit, () => search(b, audit));
       const id = String(nextId++);
       cache.set(id, papers);
       return { result_id: id, query, total_available: total, fetched: papers.length, source, papers,
@@ -319,7 +328,7 @@
       let source = "arxiv";
       for (const topic of topics) {
         const first = audit.length;
-        const r = await search({ ...b, topic }, audit);
+        const r = await withAudit(audit, () => search({ ...b, topic }, audit));
         audit.slice(first).forEach((e) => (e.action = `compare: ${topic}`));
         if (r.source === "demo") source = "demo";
         const s = analyze(r.papers);
@@ -339,7 +348,7 @@
     try {
       return json(200, await route(opts && opts.body ? JSON.parse(opts.body) : {}));
     } catch (err) {
-      return json(400, { error: err.message });
+      return json(err.status || 400, { error: err.message, audit: err.audit });
     }
   };
 })();
