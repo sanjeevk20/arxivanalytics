@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>arXiv Research Analytics</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">χ</span>
+    <div>
+      <h1>arXiv Research Analytics</h1>
+      <p class="sub">Search, filter and analyse research trends by topic and category</p>
+    </div>
+  </div>
+  <span id="mode-badge" class="badge">…</span>
+</header>
+
+<div class="layout">
+  <!-- Search panel -->
+  <aside class="panel search-panel" id="search-panel" aria-label="Search">
+    <form id="search-form" autocomplete="off">
+      <div class="panel-head">
+        <h2>Search</h2>
+        <button type="button" id="close-search" class="icon-btn mobile-only" aria-label="Close search">✕</button>
+      </div>
+
+      <label for="topic">Topic / keywords</label>
+      <input id="topic" name="topic" placeholder="e.g. map matching, road network extraction">
+      <p class="hint">Comma-separate alternatives (OR). Phrases are matched exactly.</p>
+
+      <div class="presets" id="presets" aria-label="Topic presets"></div>
+
+      <label for="field">Search in</label>
+      <select id="field" name="field">
+        <option value="all">All fields</option>
+        <option value="ti">Title</option>
+        <option value="abs">Abstract</option>
+        <option value="au">Author</option>
+        <option value="co">Comments</option>
+        <option value="jr">Journal ref</option>
+      </select>
+
+      <label>Categories <span class="count" id="cat-count"></span></label>
+      <input id="cat-search" placeholder="Filter categories…" class="small">
+      <div id="category-picker" class="category-picker"></div>
+
+      <label for="authors">Authors</label>
+      <input id="authors" name="authors" placeholder="Comma-separated surnames">
+
+      <div class="row">
+        <div><label for="year_from">From year</label><select id="year_from" name="year_from"></select></div>
+        <div><label for="year_to">To year</label><select id="year_to" name="year_to"></select></div>
+      </div>
+      <div class="presets year-presets" id="year-presets" aria-label="Year range shortcuts">
+        <button type="button" data-span="1">This year</button>
+        <button type="button" data-span="3">Last 3 years</button>
+        <button type="button" data-span="5">Last 5 years</button>
+        <button type="button" data-span="10">Last 10 years</button>
+        <button type="button" data-span="">Any time</button>
+      </div>
+      <details class="exact-dates" id="exact-dates">
+        <summary>Exact dates</summary>
+        <div class="row">
+          <div><label for="date_from">From</label><input type="date" id="date_from" name="date_from"></div>
+          <div><label for="date_to">To</label><input type="date" id="date_to" name="date_to"></div>
+        </div>
+        <p class="hint">Exact dates override the years above. arXiv filters on the submission date.</p>
+      </details>
+
+      <div class="row">
+        <div>
+          <label for="max_results">Max papers</label>
+          <select id="max_results" name="max_results">
+            <option>100</option><option selected>200</option><option>500</option>
+            <option>1000</option><option>2000</option>
+          </select>
+        </div>
+        <div>
+          <label for="sort_by">Sort</label>
+          <select id="sort_by" name="sort_by">
+            <option value="submittedDate">Newest</option>
+            <option value="relevance">Relevance</option>
+            <option value="lastUpdatedDate">Last updated</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="hint" id="query-preview"></p>
+      <div class="search-actions">
+        <button type="submit" class="primary" id="search-btn">Analyse</button>
+        <button type="button" class="ghost" id="reset-btn">Reset</button>
+      </div>
+    </form>
+  </aside>
+  <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+
+  <main>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" class="active"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Overview</span></button>
+      <button role="tab" data-tab="papers"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg><span>Papers</span></button>
+      <button role="tab" data-tab="compare"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-7 4 4"/><path d="M3 21h18"/></svg><span>Compare<span class="desktop-only"> topics</span></span></button>
+      <button role="tab" data-tab="log"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span><span class="desktop-only">Audit log</span><span class="mobile-label">Log</span> <span id="log-badge" class="tab-badge" hidden></span></span></button>
+      <button type="button" id="tab-search-btn" class="mobile-only" aria-controls="search-panel" aria-expanded="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Search</span></button>
+    </nav>
+
+    <div id="status" class="status" hidden></div>
+
+    <!-- Refine bar (applies to Overview + Papers) -->
+    <section id="refine" class="panel refine" hidden>
+      <button type="button" id="refine-toggle" class="refine-toggle mobile-only" aria-expanded="false" aria-controls="refine-row">
+        <span>Filters <span id="refine-count" class="count"></span></span><span class="chev" aria-hidden="true">▾</span>
+      </button>
+      <div class="refine-row" id="refine-row">
+        <input id="f-text" placeholder="Filter within results (title/abstract)…">
+        <input id="f-author" placeholder="Author contains…">
+        <input id="f-year-from" type="number" placeholder="Year from" min="1991" max="2100">
+        <input id="f-year-to" type="number" placeholder="Year to" min="1991" max="2100">
+        <label class="toggle"><input type="checkbox" id="f-primary"> Primary category only</label>
+        <button class="ghost" id="f-clear" type="button">Clear filters</button>
+      </div>
+      <div id="f-chips" class="chips" aria-label="Category filters"></div>
+    </section>
+
+    <section id="tab-overview" class="tab-panel">
+      <div id="empty" class="empty">
+        <h2>Start with a research topic</h2>
+        <p>Enter keywords and/or pick categories in the search panel, then press <b>Analyse</b>.
+          You'll get publication trends, category mix, leading authors, key phrases and emerging terms.</p>
+        <button type="button" class="primary mobile-only" id="empty-search">Start a search</button>
+      </div>
+      <div id="overview" hidden>
+        <div class="kpis" id="kpis"></div>
+        <div class="grid">
+          <div class="card wide"><h3>Publications over time</h3><div id="chart-timeline" class="chart"></div></div>
+          <div class="card"><h3>Primary categories <small>click to filter</small></h3><div id="chart-primary"></div></div>
+          <div class="card"><h3>All categories (incl. cross-lists)</h3><div id="chart-allcats"></div></div>
+          <div class="card"><h3>Top authors <small>click to filter</small></h3><div id="chart-authors"></div></div>
+          <div class="card"><h3>Key phrases <small>click to filter</small></h3><div id="chart-phrases"></div></div>
+          <div class="card"><h3>Keywords</h3><div id="cloud" class="cloud"></div></div>
+          <div class="card"><h3>Emerging terms <small>recent vs. earlier half</small></h3><div id="emerging"></div></div>
+          <div class="card wide"><h3>Category co-occurrence</h3><div id="chart-pairs"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-papers" class="tab-panel" hidden>
+      <div class="toolbar">
+        <span id="paper-count"></span>
+        <span class="spacer"></span>
+        <select id="paper-sort">
+          <option value="date-desc">Newest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="title">Title A–Z</option>
+          <option value="authors">Most authors</option>
+        </select>
+        <button class="ghost" id="export-csv" type="button">Export CSV</button>
+        <button class="ghost" id="export-json" type="button">Export JSON</button>
+      </div>
+      <div id="paper-list" class="paper-list"></div>
+      <div class="pager"><button class="ghost" id="more-btn" type="button" hidden>Show more</button></div>
+    </section>
+
+    <section id="tab-compare" class="tab-panel" hidden>
+      <div class="panel">
+        <label for="compare-topics">Topics to compare (one per line, 2–6)</label>
+        <textarea id="compare-topics" rows="4">graph neural networks
+vision transformers
+diffusion models</textarea>
+        <p class="hint">Uses the categories, dates and max-papers settings from the search panel.
+          Live mode makes one arXiv request per topic (rate-limited), so this can take a little while.</p>
+        <button class="primary" id="compare-btn" type="button">Compare</button>
+      </div>
+      <div id="compare-out" hidden>
+        <div class="card"><h3>Papers per year</h3><div id="chart-compare" class="chart"></div><div id="compare-legend" class="legend"></div></div>
+        <div class="card"><h3>Summary</h3><div id="compare-table"></div></div>
+      </div>
+    </section>
+    <section id="tab-log" class="tab-panel" hidden>
+      <div class="toolbar">
+        <span id="log-count">No arXiv requests yet</span>
+        <span class="spacer"></span>
+        <label class="toggle"><input type="checkbox" id="log-errors-only"> Problems only</label>
+        <button class="ghost" id="log-copy" type="button">Copy log</button>
+        <button class="ghost" id="log-clear" type="button">Clear</button>
+      </div>
+      <p class="hint">Every request sent to arXiv for a search or comparison, newest first: the exact query,
+        the request URL, which route it took, the HTTP status and timing. Each entry is also written to the
+        browser console with <code>console.debug</code>.</p>
+      <ol id="log-list" class="log-list"></ol>
+    </section>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="static-api.js"></script>
+<script src="app.js"></script>
+<script src="static-site.js"></script>
+</body>
+</html>
