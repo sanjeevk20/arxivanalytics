@@ -62,7 +62,10 @@ def _fill_months(counter):
 
 
 def _ranked(counter, n, key="name"):
-    return [{key: k, "count": v} for k, v in counter.most_common(n)]
+    # Ties break alphabetically so rankings don't depend on set iteration order
+    # (which changes between runs) and match the browser port in site/static-api.js.
+    ranked = sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [{key: k, "count": v} for k, v in ranked[:n]]
 
 
 def emerging_terms(papers, n=15, min_count=3):

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Made-up arXiv API response for an "electric vehicle" search. Not real papers. -->
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query: search_query=all:"electric vehicle"</title>
+  <opensearch:totalResults>4</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <opensearch:itemsPerPage>4</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/2301.10001v1</id>
+    <updated>2023-01-10T00:00:00Z</updated>
+    <published>2023-01-10T00:00:00Z</published>
+    <title>Fixture: Electric Vehicle Charging Station Placement on Road Networks</title>
+    <summary>We place electric vehicle charging stations on a road network using
+      demand forecasts and grid capacity constraints.</summary>
+    <author><name>Ada Fixture</name></author>
+    <author><name>Ben Fixture</name></author>
+    <arxiv:primary_category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2301.10001v1" rel="related" type="application/pdf"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2306.10002v1</id>
+    <updated>2023-06-02T00:00:00Z</updated>
+    <published>2023-06-02T00:00:00Z</published>
+    <title>Fixture: Battery Health Estimation for Electric Vehicle Fleets</title>
+    <summary>Electric vehicle battery degradation is estimated from charging sessions
+      with a lightweight neural network.</summary>
+    <author><name>Ada Fixture</name></author>
+    <arxiv:primary_category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2402.10003v1</id>
+    <updated>2024-02-14T00:00:00Z</updated>
+    <published>2024-02-14T00:00:00Z</published>
+    <title>Fixture: Energy-Aware Routing for Electric Vehicle Trips</title>
+    <summary>Routing for an electric vehicle minimises energy use on the road network
+      while keeping charging stops short.</summary>
+    <author><name>Cleo Fixture</name></author>
+    <arxiv:primary_category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2405.10004v1</id>
+    <updated>2024-05-20T00:00:00Z</updated>
+    <published>2024-05-20T00:00:00Z</published>
+    <title>Fixture: Grid Impact of Electric Vehicle Adoption</title>
+    <summary>Rising electric vehicle adoption shifts household load; charging
+      demand is simulated for a regional grid.</summary>
+    <author><name>Ben Fixture</name></author>
+    <author><name>Dev Fixture</name></author>
+    <arxiv:primary_category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>
