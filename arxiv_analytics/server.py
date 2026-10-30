@@ -56,6 +56,8 @@ def params_from(body):
         authors=as_list(body.get("authors")),
         date_from=str(body.get("date_from", "")),
         date_to=str(body.get("date_to", "")),
+        year_from=str(body.get("year_from") or ""),
+        year_to=str(body.get("year_to") or ""),
         max_results=int(body.get("max_results") or 200),
         sort_by=str(body.get("sort_by", "submittedDate")),
         sort_order=str(body.get("sort_order", "descending")),

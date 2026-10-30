@@ -25,7 +25,9 @@ You can also run `pip install .` and then `arxiv-analytics`.
 - Search field: all fields, title, abstract, author, comments or journal ref.
 - Category picker: about 50 arXiv categories grouped by archive (CS, Stats, EESS, Math, Physics,
   q-bio, q-fin, econ). You can search the list and select a whole group at once.
-- Author filter, submitted-date range, max papers (up to 2,000, fetched in pages) and sort order.
+- Year range (From/To year, or This year / Last 3, 5, 10 years). An exact date range under
+  **Exact dates** overrides the years. Both become arXiv's `submittedDate` filter.
+- Author filter, max papers (up to 2,000, fetched in pages) and sort order.
 - One-click topic presets.
 
 **Refine bar (filters the fetched results without calling arXiv again)**
@@ -71,9 +73,11 @@ JSON API: `GET /api/categories`, `POST /api/search`, `POST /api/analyze` (refine
 Python server, so the site includes `site/static-api.js`, which handles the UI's `/api/*` calls in the
 browser:
 
-- Searches call the arXiv API directly from the browser and are paged with the same 3-second spacing.
-- If the browser can't reach arXiv, the site switches to the built-in synthetic sample papers and says
-  so in the header and status line.
+- Searches go to arXiv through the relay below (or directly, which browsers block) and are paged with
+  the same 3-second spacing.
+- Results are always live. If arXiv can't be reached, the search fails with an error that says why.
+  Built-in sample papers appear only if you press **Use sample papers instead**, and they're labelled
+  as such until you switch back to live.
 - Analytics, filters, Compare and CSV/JSON export all run in the browser.
 
 `.github/workflows/pages.yml` runs the tests, builds the site and publishes it to the `gh-pages` branch
@@ -85,8 +89,8 @@ To preview locally: `python3 scripts/build_site.py && python3 -m http.server -d 
 
 ### arXiv relay (needed for live data on the hosted site)
 
-arXiv's API sends no CORS headers, so browsers block it when it's called from another website, and the
-hosted site falls back to sample data. `relay/worker.js` is a small Cloudflare Worker that forwards
+arXiv's API sends no CORS headers, so browsers block it when it's called from another website. Without
+the relay, the hosted site can't search arXiv. `relay/worker.js` is a small Cloudflare Worker that forwards
 arXiv API queries and adds those headers. It only calls `export.arxiv.org/api/query`, caps a request at
 500 results, and caches answers for an hour.
 

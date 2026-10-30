@@ -6,7 +6,7 @@ These records are generated, not real arXiv papers; the UI labels them as such.
 import random
 
 from .analytics import filter_papers
-from .client import audit_entry, build_query
+from .client import audit_entry, build_query, submitted_range
 
 _THEMES = {
     "cs.LG": ["graph neural networks", "self-supervised learning", "federated learning",
@@ -84,8 +84,8 @@ def search(params, audit=None):
     if _CORPUS is None:
         _CORPUS = generate()
     query = build_query(params)  # validates input the same way as live mode
-    year_from = params.date_from[:4] if params.date_from else None
-    year_to = params.date_to[:4] if params.date_to else None
+    start, end = submitted_range(params)
+    year_from, year_to = start[:4] or None, end[:4] or None  # the corpus is filtered by year
     matched = _CORPUS
     topics = [t.strip().lower() for t in params.topic.split(",") if t.strip()]
     if topics:
