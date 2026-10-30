@@ -45,6 +45,8 @@ overlaid trend lines, plus a summary table (total matches on arXiv, top categori
 
 ## Architecture
 
+Diagrams of the runtime and deploy pipeline: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ```
 arxiv_analytics/
   client.py      arXiv Atom API: query builder, paging (3 s between requests), feed parser
