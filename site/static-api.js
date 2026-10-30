@@ -190,7 +190,10 @@
     return { papers, total };
   }
 
-  async function fetchPage(query, start, size, b) {
+  // One row of the UI's audit log, same shape as client.audit_entry() in the Python app.
+  const auditEntry = (source, query, fields) => ({ time: new Date().toISOString(), source, query, ...fields });
+
+  async function fetchPage(query, start, size, b, audit) {
     // arXiv asks clients to wait ~3 seconds between consecutive requests.
     const wait = lastRequest + REQUEST_DELAY_MS - Date.now();
     if (wait > 0) await sleep(wait);
@@ -204,28 +207,37 @@
     for (const base of endpoints) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 30000);
+      const url = `${base}?${qs}`;
+      const entry = auditEntry(base === RELAY_URL ? "relay" : "direct", query, { url, start, max_results: size });
+      const began = performance.now();
       try {
-        const res = await realFetch(`${base}?${qs}`, { signal: ctrl.signal });
+        const res = await realFetch(url, { signal: ctrl.signal });
+        entry.http_status = res.status;
         if (!res.ok) throw new Error(`arXiv responded with HTTP ${res.status}`);
         const page = parseFeed(await res.text());
+        Object.assign(entry, { status: "ok", returned: page.papers.length, total: page.total });
         endpoints = [base]; // stick with whichever endpoint answered
         return page;
       } catch (err) {
         lastError = err;
+        // A CORS refusal surfaces only as a generic network error.
+        Object.assign(entry, { status: "error", error: err.name === "AbortError" ? "Timed out after 30 s" : err.message });
       } finally {
+        entry.duration_ms = Math.round(performance.now() - began);
+        audit.push(entry);
         clearTimeout(timer);
       }
     }
     throw lastError;
   }
 
-  async function liveSearch(b) {
+  async function liveSearch(b, audit) {
     const query = buildQuery(b);
     const limit = Math.max(1, Math.min(Number(b.max_results) || 200, MAX_RESULTS));
     const papers = [];
     let total = 0;
     for (let start = 0; start < limit; start += PAGE_SIZE) {
-      const page = await fetchPage(query, start, Math.min(PAGE_SIZE, limit - start), b);
+      const page = await fetchPage(query, start, Math.min(PAGE_SIZE, limit - start), b, audit);
       total = page.total;
       papers.push(...page.papers);
       if (!page.papers.length || start + PAGE_SIZE >= total) break;
@@ -235,17 +247,22 @@
 
   // Live first; after one failure, stay on sample data so each search isn't slowed by a timeout.
   let liveAvailable = true;
-  async function search(b) {
+  async function search(b, audit) {
+    let reason = "arXiv was unreachable earlier in this session";
     if (liveAvailable) {
       try {
-        return await liveSearch(b);
+        return await liveSearch(b, audit);
       } catch (err) {
         if (err.message.startsWith("Provide at least")) throw err;
         liveAvailable = false;
-        window.dispatchEvent(new CustomEvent("arxiv-fallback", { detail: err.message || String(err) }));
+        reason = err.message || String(err);
+        window.dispatchEvent(new CustomEvent("arxiv-fallback", { detail: reason }));
       }
     }
-    return { ...demoSearch(b), source: "demo" };
+    const r = demoSearch(b);
+    audit.push(auditEntry("sample", r.query, { status: "fallback", returned: r.papers.length, total: r.total,
+      duration_ms: 0, note: `Using built-in sample papers: ${reason}.` }));
+    return { ...r, source: "demo" };
   }
 
   function demoSearch(b) {
@@ -266,10 +283,12 @@
   const routes = {
     "/api/categories": () => ({ groups: GROUPS, demo: false }),
     "/api/search": async (b) => {
-      const { papers, total, query, source } = await search(b);
+      const audit = [];
+      const { papers, total, query, source } = await search(b, audit);
       const id = String(nextId++);
       cache.set(id, papers);
-      return { result_id: id, query, total_available: total, fetched: papers.length, source, papers, analytics: analyze(papers) };
+      return { result_id: id, query, total_available: total, fetched: papers.length, source, papers,
+        analytics: analyze(papers), audit };
     },
     "/api/analyze": (b) => {
       const base = cache.get(b.result_id);
@@ -280,16 +299,18 @@
     "/api/compare": async (b) => {
       const topics = (b.topics || []).map((t) => t.trim()).filter(Boolean);
       if (topics.length < 2 || topics.length > 6) throw new Error("Compare needs 2–6 topics.");
-      const series = [];
+      const series = [], audit = [];
       let source = "arxiv";
       for (const topic of topics) {
-        const r = await search({ ...b, topic });
+        const first = audit.length;
+        const r = await search({ ...b, topic }, audit);
+        audit.slice(first).forEach((e) => (e.action = `compare: ${topic}`));
         if (r.source === "demo") source = "demo";
         const s = analyze(r.papers);
         series.push({ topic, query: r.query, total_available: r.total, fetched: r.papers.length, by_year: s.by_year,
           timeline: s.timeline, top_categories: s.primary_categories.slice(0, 5), keywords: s.keywords.slice(0, 10) });
       }
-      return { source, series };
+      return { source, series, audit };
     },
   };
 

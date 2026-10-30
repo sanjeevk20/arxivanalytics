@@ -1,5 +1,6 @@
 """Thin client for the public arXiv Atom API (https://info.arxiv.org/help/api/)."""
 
+import logging
 import re
 import time
 import urllib.parse
@@ -7,6 +8,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass
 from dataclasses import field as dc_field
+from datetime import datetime, timezone
 
 API_URL = "https://export.arxiv.org/api/query"
 PAGE_SIZE = 200
@@ -22,6 +24,8 @@ NS = {
 
 SEARCH_FIELDS = {"all", "ti", "abs", "au", "co", "jr"}
 SORT_BY = {"relevance", "submittedDate", "lastUpdatedDate"}
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -141,7 +145,7 @@ def parse_feed(xml_text):
     return papers, total
 
 
-def _fetch_page(query, start, size, sort_by, sort_order, timeout):
+def request_url(query, start, size, sort_by, sort_order):
     qs = urllib.parse.urlencode(
         {
             "search_query": query,
@@ -151,15 +155,29 @@ def _fetch_page(query, start, size, sort_by, sort_order, timeout):
             "sortOrder": sort_order,
         }
     )
+    return f"{API_URL}?{qs}"
+
+
+def _fetch_page(query, start, size, sort_by, sort_order, timeout):
     req = urllib.request.Request(
-        f"{API_URL}?{qs}", headers={"User-Agent": "arxiv-analytics/0.1"}
+        request_url(query, start, size, sort_by, sort_order),
+        headers={"User-Agent": "arxiv-analytics/0.1"},
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read().decode("utf-8")
 
 
-def search(params: SearchParams, fetch=_fetch_page, timeout=30, delay=REQUEST_DELAY_S):
-    """Run a search, paging through results. Returns (papers, total, query)."""
+def audit_entry(source, query, **fields):
+    """One row of the UI's audit log (see renderAudit in static/app.js)."""
+    return {"time": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "source": source, "query": query, **fields}
+
+
+def search(params: SearchParams, fetch=_fetch_page, timeout=30, delay=REQUEST_DELAY_S, audit=None):
+    """Run a search, paging through results. Returns (papers, total, query).
+
+    If `audit` is a list, one entry per arXiv request is appended to it, failures included.
+    """
     query = build_query(params)
     limit = max(1, min(int(params.max_results or 0), MAX_RESULTS_CAP))
     sort_by = params.sort_by if params.sort_by in SORT_BY else "submittedDate"
@@ -170,7 +188,25 @@ def search(params: SearchParams, fetch=_fetch_page, timeout=30, delay=REQUEST_DE
         if start:
             time.sleep(delay)
         size = min(PAGE_SIZE, limit - start)
-        page, total = parse_feed(fetch(query, start, size, sort_by, sort_order, timeout))
+        url = request_url(query, start, size, sort_by, sort_order)
+        entry = audit_entry("arxiv", query, url=url, start=start, max_results=size)
+        log.debug("arXiv request: %s", url)
+        began = time.monotonic()
+        try:
+            page, total = parse_feed(fetch(query, start, size, sort_by, sort_order, timeout))
+        except Exception as exc:
+            entry.update(status="error", http_status=getattr(exc, "code", None), error=str(exc),
+                         duration_ms=round((time.monotonic() - began) * 1000))
+            log.debug("arXiv request failed after %d ms: %s", entry["duration_ms"], exc)
+            if audit is not None:
+                audit.append(entry)
+            raise
+        entry.update(status="ok", http_status=200, returned=len(page), total=total,
+                     duration_ms=round((time.monotonic() - began) * 1000))
+        log.debug("arXiv response: %d entries of %d total in %d ms",
+                  len(page), total, entry["duration_ms"])
+        if audit is not None:
+            audit.append(entry)
         papers.extend(page)
         start += size
         if not page or start >= total:

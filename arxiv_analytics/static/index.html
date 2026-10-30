@@ -87,6 +87,7 @@
       <button role="tab" data-tab="overview" class="active"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Overview</span></button>
       <button role="tab" data-tab="papers"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg><span>Papers</span></button>
       <button role="tab" data-tab="compare"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-7 4 4"/><path d="M3 21h18"/></svg><span>Compare<span class="desktop-only"> topics</span></span></button>
+      <button role="tab" data-tab="log"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span><span class="desktop-only">Audit log</span><span class="mobile-label">Log</span> <span id="log-badge" class="tab-badge" hidden></span></span></button>
       <button type="button" id="tab-search-btn" class="mobile-only" aria-controls="search-panel" aria-expanded="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Search</span></button>
     </nav>
 
@@ -161,6 +162,19 @@ diffusion models</textarea>
         <div class="card"><h3>Papers per year</h3><div id="chart-compare" class="chart"></div><div id="compare-legend" class="legend"></div></div>
         <div class="card"><h3>Summary</h3><div id="compare-table"></div></div>
       </div>
+    </section>
+    <section id="tab-log" class="tab-panel" hidden>
+      <div class="toolbar">
+        <span id="log-count">No arXiv requests yet</span>
+        <span class="spacer"></span>
+        <label class="toggle"><input type="checkbox" id="log-errors-only"> Problems only</label>
+        <button class="ghost" id="log-copy" type="button">Copy log</button>
+        <button class="ghost" id="log-clear" type="button">Clear</button>
+      </div>
+      <p class="hint">Every request sent to arXiv for a search or comparison, newest first: the exact query,
+        the request URL, which route it took, the HTTP status and timing. Each entry is also written to the
+        browser console with <code>console.debug</code>.</p>
+      <ol id="log-list" class="log-list"></ol>
     </section>
   </main>
 </div>

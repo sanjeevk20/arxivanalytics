@@ -4,6 +4,7 @@ import argparse
 import csv
 import io
 import json
+import logging
 import mimetypes
 import threading
 import urllib.error
@@ -94,13 +95,22 @@ class App:
         self.search_fn = search_fn or (demo.search if demo_mode else self._live_search)
 
     @staticmethod
-    def _live_search(params):
-        papers, total, query = client.search(params)
+    def _live_search(params, audit):
+        papers, total, query = client.search(params, audit=audit)
         return [p.to_dict() for p in papers], total, query
 
+    def _run_search(self, body, audit):
+        try:
+            return self.search_fn(params_from(body), audit)
+        except Exception as exc:
+            exc.audit = audit  # let the error response still show what was sent
+            raise
+
     def search(self, body):
-        papers, total, query = self.search_fn(params_from(body))
+        audit = []
+        papers, total, query = self._run_search(body, audit)
         return {
+            "audit": audit,
             "result_id": self.cache.put(papers),
             "query": query,
             "total_available": total,
@@ -124,9 +134,12 @@ class App:
         topics = [t.strip() for t in body.get("topics", []) if t and t.strip()]
         if not 2 <= len(topics) <= MAX_COMPARE_TOPICS:
             raise ValueError(f"Compare needs 2–{MAX_COMPARE_TOPICS} topics.")
-        series = []
+        series, audit = [], []
         for topic in topics:
-            papers, total, query = self.search_fn(params_from({**body, "topic": topic}))
+            start = len(audit)
+            papers, total, query = self._run_search({**body, "topic": topic}, audit)
+            for entry in audit[start:]:
+                entry["action"] = f"compare: {topic}"
             stats = analyze(papers)
             series.append({
                 "topic": topic,
@@ -138,7 +151,7 @@ class App:
                 "top_categories": stats["primary_categories"][:5],
                 "keywords": stats["keywords"][:10],
             })
-        return {"source": "demo" if self.demo_mode else "arxiv", "series": series}
+        return {"source": "demo" if self.demo_mode else "arxiv", "series": series, "audit": audit}
 
     def export(self, query):
         papers = refine(self._cached(query.get("result_id", "")),
@@ -177,7 +190,8 @@ def make_handler(app):
                 self._json(410, {"error": str(exc)})
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 self._json(502, {"error": f"Could not reach arXiv: {exc}. "
-                                          "Try again, or start with --demo for offline data."})
+                                          "Try again, or start with --demo for offline data.",
+                                 "audit": getattr(exc, "audit", [])})
 
         def do_GET(self):
             url = urlparse(self.path)
@@ -223,7 +237,11 @@ def main(argv=None):
     parser.add_argument("--demo", action="store_true",
                         help="use bundled synthetic data instead of the live arXiv API")
     parser.add_argument("--open", action="store_true", help="open the UI in a browser")
+    parser.add_argument("--debug", action="store_true",
+                        help="log every arXiv request and response to the terminal")
     args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARNING,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     httpd = ThreadingHTTPServer((args.host, args.port), make_handler(App(demo_mode=args.demo)))
     url = f"http://{args.host}:{args.port}/"
