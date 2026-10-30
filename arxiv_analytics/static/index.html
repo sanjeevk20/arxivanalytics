@@ -51,9 +51,24 @@
       <input id="authors" name="authors" placeholder="Comma-separated surnames">
 
       <div class="row">
-        <div><label for="date_from">From</label><input type="date" id="date_from" name="date_from"></div>
-        <div><label for="date_to">To</label><input type="date" id="date_to" name="date_to"></div>
+        <div><label for="year_from">From year</label><select id="year_from" name="year_from"></select></div>
+        <div><label for="year_to">To year</label><select id="year_to" name="year_to"></select></div>
       </div>
+      <div class="presets year-presets" id="year-presets" aria-label="Year range shortcuts">
+        <button type="button" data-span="1">This year</button>
+        <button type="button" data-span="3">Last 3 years</button>
+        <button type="button" data-span="5">Last 5 years</button>
+        <button type="button" data-span="10">Last 10 years</button>
+        <button type="button" data-span="">Any time</button>
+      </div>
+      <details class="exact-dates" id="exact-dates">
+        <summary>Exact dates</summary>
+        <div class="row">
+          <div><label for="date_from">From</label><input type="date" id="date_from" name="date_from"></div>
+          <div><label for="date_to">To</label><input type="date" id="date_to" name="date_to"></div>
+        </div>
+        <p class="hint">Exact dates override the years above. arXiv filters on the submission date.</p>
+      </details>
 
       <div class="row">
         <div>

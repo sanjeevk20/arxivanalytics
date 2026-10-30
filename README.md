@@ -25,7 +25,9 @@ You can also run `pip install .` and then `arxiv-analytics`.
 - Search field: all fields, title, abstract, author, comments or journal ref.
 - Category picker: about 50 arXiv categories grouped by archive (CS, Stats, EESS, Math, Physics,
   q-bio, q-fin, econ). You can search the list and select a whole group at once.
-- Author filter, submitted-date range, max papers (up to 2,000, fetched in pages) and sort order.
+- Year range (From/To year, or This year / Last 3, 5, 10 years). An exact date range under
+  **Exact dates** overrides the years. Both become arXiv's `submittedDate` filter.
+- Author filter, max papers (up to 2,000, fetched in pages) and sort order.
 - One-click topic presets.
 
 **Refine bar (filters the fetched results without calling arXiv again)**

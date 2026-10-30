@@ -24,6 +24,7 @@ NS = {
 
 SEARCH_FIELDS = {"all", "ti", "abs", "au", "co", "jr"}
 SORT_BY = {"relevance", "submittedDate", "lastUpdatedDate"}
+FIRST_YEAR, LAST_YEAR = 1991, 2100  # arXiv opened in August 1991
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +58,8 @@ class SearchParams:
     authors: list = dc_field(default_factory=list)
     date_from: str = ""  # YYYY-MM-DD
     date_to: str = ""  # YYYY-MM-DD
+    year_from: str = ""  # YYYY; used when date_from is empty
+    year_to: str = ""  # YYYY; used when date_to is empty
     max_results: int = 200
     sort_by: str = "submittedDate"
     sort_order: str = "descending"
@@ -86,6 +89,24 @@ def _date_stamp(value, end_of_day):
     return digits + ("2359" if end_of_day else "0000")
 
 
+def _year_stamp(value, end_of_year):
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    if not value.isdigit() or not FIRST_YEAR <= int(value) <= LAST_YEAR:
+        raise ValueError(f"Year must be between {FIRST_YEAR} and {LAST_YEAR}, got {value!r}.")
+    return value + ("12312359" if end_of_year else "01010000")
+
+
+def submitted_range(params: SearchParams):
+    """(start, end) stamps for arXiv's submittedDate filter; exact dates win over years."""
+    start = _date_stamp(params.date_from, end_of_day=False) or _year_stamp(params.year_from, False)
+    end = _date_stamp(params.date_to, end_of_day=True) or _year_stamp(params.year_to, True)
+    if start and end and start > end:
+        raise ValueError("The date range ends before it starts.")
+    return start, end
+
+
 def build_query(params: SearchParams) -> str:
     """Translate SearchParams into an arXiv `search_query` expression."""
     field_name = params.field if params.field in SEARCH_FIELDS else "all"
@@ -96,8 +117,7 @@ def build_query(params: SearchParams) -> str:
         _or_group([_term("cat", c) for c in params.categories]),
         _or_group([_term("au", a) for a in params.authors]),
     ]
-    start = _date_stamp(params.date_from, end_of_day=False)
-    end = _date_stamp(params.date_to, end_of_day=True)
+    start, end = submitted_range(params)
     if start or end:
         parts.append(f"submittedDate:[{start or '199101010000'} TO {end or '209912312359'}]")
     parts = [p for p in parts if p]

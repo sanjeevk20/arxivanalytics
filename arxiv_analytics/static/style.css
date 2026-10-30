@@ -95,6 +95,10 @@ button.ghost:hover { background: var(--surface-2); }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .presets button { padding: 3px 9px; font-size: 12px; border-radius: 999px; background: var(--surface-2); border-color: transparent; }
 .presets button:hover { border-color: var(--border); }
+.presets button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.exact-dates { margin-top: 10px; }
+.exact-dates summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); }
+.exact-dates[open] summary { margin-bottom: 2px; }
 
 .category-picker { border: 1px solid var(--border); border-radius: 8px; max-height: 260px; overflow: auto; margin-top: 6px; padding: 4px 0; }
 .cat-group summary { cursor: pointer; padding: 4px 10px; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; }

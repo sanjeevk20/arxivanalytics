@@ -126,19 +126,35 @@
 
   const asList = (v) => (typeof v === "string" ? v.split(",") : v || []).map((s) => s.trim()).filter(Boolean);
 
+  // Same rules as client.submitted_range(): exact dates win over years.
+  function submittedRange(b) {
+    const stamp = (d, end) => {
+      const digits = String(d || "").replace(/\D/g, "");
+      return digits.length === 8 ? digits + (end ? "2359" : "0000") : "";
+    };
+    const yearStamp = (y, end) => {
+      y = String(y || "").trim();
+      if (!y) return "";
+      if (!/^\d+$/.test(y) || +y < 1991 || +y > 2100) throw new Error(`Year must be between 1991 and 2100, got '${y}'.`);
+      return y + (end ? "12312359" : "01010000");
+    };
+    const start = stamp(b.date_from) || yearStamp(b.year_from);
+    const end = stamp(b.date_to, true) || yearStamp(b.year_to, true);
+    if (start && end && start > end) throw new Error("The date range ends before it starts.");
+    return [start, end];
+  }
+
   function buildQuery(b) {
     const field = ["all", "ti", "abs", "au", "co", "jr"].includes(b.field) ? b.field : "all";
     const term = (f, t) => `${f}:${t.includes(" ") ? `"${t}"` : t}`;
     const group = (ts) => (ts.length > 1 ? `(${ts.join(" OR ")})` : ts[0] || "");
-    const stamp = (d, end) => (d ? d.replace(/\D/g, "") + (end ? "2359" : "0000") : "");
     const parts = [
       group(asList(b.topic).map((t) => term(field, t))),
       group(asList(b.categories).map((c) => term("cat", c))),
       group(asList(b.authors).map((a) => term("au", a))),
     ];
-    if (b.date_from || b.date_to) {
-      parts.push(`submittedDate:[${stamp(b.date_from) || "199101010000"} TO ${stamp(b.date_to, true) || "209912312359"}]`);
-    }
+    const [start, end] = submittedRange(b);
+    if (start || end) parts.push(`submittedDate:[${start || "199101010000"} TO ${end || "209912312359"}]`);
     const q = parts.filter(Boolean).join(" AND ");
     if (!q) throw new Error("Provide at least a topic, category, or author.");
     return q;
@@ -273,8 +289,8 @@
       : CORPUS;
     matched = filterPapers(matched, {
       categories: asList(b.categories),
-      year_from: b.date_from ? b.date_from.slice(0, 4) : "",
-      year_to: b.date_to ? b.date_to.slice(0, 4) : "",
+      year_from: submittedRange(b)[0].slice(0, 4),
+      year_to: submittedRange(b)[1].slice(0, 4),
     });
     for (const a of asList(b.authors)) matched = filterPapers(matched, { author: a });
     return { papers: matched.slice(0, Number(b.max_results) || 200), total: matched.length, query };

@@ -110,6 +110,46 @@ function setStatus(msg, kind = "") {
 }
 
 // ---------- Search panel ----------
+const THIS_YEAR = new Date().getFullYear();
+const FIRST_ARXIV_YEAR = 1991;
+
+function initYears() {
+  const years = Array.from({ length: THIS_YEAR - FIRST_ARXIV_YEAR + 1 }, (_, i) => THIS_YEAR - i);
+  const options = (anyLabel) => `<option value="">${anyLabel}</option>` +
+    years.map((y) => `<option value="${y}">${y}</option>`).join("");
+  $("#year_from").innerHTML = options("Earliest");
+  $("#year_to").innerHTML = options("Latest");
+  // Keep the range the right way round as either end changes.
+  $("#year_from").addEventListener("change", () => {
+    const from = $("#year_from").value, to = $("#year_to").value;
+    if (from && to && +from > +to) $("#year_to").value = from;
+    markYearPreset();
+  });
+  $("#year_to").addEventListener("change", () => {
+    const from = $("#year_from").value, to = $("#year_to").value;
+    if (from && to && +from > +to) $("#year_from").value = to;
+    markYearPreset();
+  });
+  $("#year-presets").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-span]");
+    if (!btn) return;
+    const span = btn.dataset.span;
+    $("#year_from").value = span ? String(THIS_YEAR - +span + 1) : "";
+    $("#year_to").value = span ? String(THIS_YEAR) : "";
+    markYearPreset();
+  });
+  markYearPreset();
+}
+
+function markYearPreset() {
+  const from = $("#year_from").value, to = $("#year_to").value;
+  document.querySelectorAll("#year-presets [data-span]").forEach((b) => {
+    const span = b.dataset.span;
+    const on = span ? from === String(THIS_YEAR - +span + 1) && to === String(THIS_YEAR) : !from && !to;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+}
 async function initCategories() {
   const { groups, demo } = await api("/api/categories");
   const badge = $("#mode-badge");
@@ -159,6 +199,8 @@ function searchBody() {
     authors: $("#authors").value,
     date_from: $("#date_from").value,
     date_to: $("#date_to").value,
+    year_from: $("#year_from").value,
+    year_to: $("#year_to").value,
     max_results: Number($("#max_results").value),
     sort_by: $("#sort_by").value,
   };
@@ -479,6 +521,7 @@ function init() {
     $("#search-form").reset();
     document.querySelectorAll('input[name="cat"]').forEach((b) => (b.checked = false));
     updateCatCount();
+    markYearPreset();
   });
 
   ["#f-text", "#f-author", "#f-year-from", "#f-year-to"].forEach((s) => $(s).addEventListener("input", readFilterInputs));
@@ -531,6 +574,7 @@ function init() {
     }, 150);
   });
 
+  initYears();
   initTabs();
   initCategories().catch((err) => setStatus(esc(err.message), "error"));
 }
